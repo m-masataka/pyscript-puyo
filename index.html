@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta name="viewport" content="width=300px,initial-scale=1,user-scalable=no">
+    <link rel="stylesheet" href="main.css">
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" /> 
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+    <!-- for local build
+      <script defer src="/build/pyscript.js"></script>
+      <link rel="stylesheet" href="/build/pyscript.css" />
+    -->
+  </head>
+
+
+  <body>
+    <div class="game-container">
+      <div class="board-container">
+        <div class="game-control-panel">
+          <div class="game-btn"><img src="img/menu.png"></div>
+          <div class="game-btn"><img src="img/stop.png"></div>
+          <div class="game-btn"><img src="img/start.png"></div>
+          <div class="game-btn"><img src="img/restart.png"></div>
+          <div class="game-info"><img src="img/frame.png">
+            <p>Let's Play Puyopuyo</p>
+          </div>
+        </div>
+        <div class="game-panel" id="game-panel">
+          <div class="next-puyo">
+            <div class="view-next" style="width: 25px; margin-bottom: 10px;">
+              <div class="next-cell" id="next-puyo-0"><img src="" class="puyo"></div>
+              <div class="next-cell" id="next-puyo-1"><img src="" class="puyo"></div>
+            </div>
+            <div class="view-next" style="width: 24px; margin-bottom: 10px;">
+              <div class="next-cell" id="next-puyo-2"><img src="" class="puyo"></div>
+              <div class="next-cell" id="next-puyo-3"><img src="" class="puyo"></div>
+            </div>
+          </div>
+          <div class="game-board-container">
+            <div class="grid-container" id="grid-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <py-script src="/board.py"></py-script>
+    <div id="list-tasks-container" class="flex flex-col-reverse mt-4"></div>
+    <template id="task-template">
+      <section class="task bg-white my-1">
+          <label for="flex items-center p-2 ">
+            <input class="mr-2" type="checkbox" class="task-check">
+            <p class="m-0 inline"></p>
+          </label>
+      </section>
+    </template>
+    <template id="puyo-template">
+      <div class="view-cell" style="position: absolute; top: 0px; left: 50px;">
+        <img src="" class="puyo">
+      </div>
+    </template>
+  </body>
+</html>
