@@ -1,8 +1,10 @@
 from enum import Enum, auto
 import copy
+import time
 import asyncio
-import random
 from pyodide import create_proxy
+import random
+from datetime import datetime
 
 ROW = 13
 COL = 6
@@ -24,6 +26,11 @@ class Puyo(Enum):
         self.text = text
         self.img = img
 
+    @classmethod
+    def random_choice(cls):
+        return random.choice((cls.Red, cls.Blue, cls.Green, cls.Yellow, cls.Purple))
+
+
 class Status(Enum):
     Start = auto()
     New = auto()
@@ -44,32 +51,58 @@ def move_check(b, c, n):
             return False
     return True
 
-def fall(b, r):
-    if r == 0:
-        return b
-    for c in range(6):
-        if b[r][c] is Puyo.Empty:
-            cell = None
-            for _r in reversed(range(r)):
-                if b[_r][c] is not Puyo.Empty:
-                    cell = copy.deepcopy(b[_r][c])
-                    b[_r][c] = Puyo.Empty
-            if cell is not None:
-                b[r][c] = cell
-    return fall(b, r-1)
+def fall(b):
+    count = 0
+    while True:
+        falled = False
+        for r in range(ROW-1):
+            for c in range(COL):
+                if b[r][c] is not Puyo.Empty and b[r+1][c] is Puyo.Empty:
+                    falled = True
+                    cell = copy.deepcopy(b[r][c])
+                    b[r+1][c] = cell
+                    b[r][c] = Puyo.Empty
+        if not falled:
+            break
+        count += 1
+    return count > 0
+
+def chain(b, r, c, processed):
+    processed.append([r,c])
+    neighbor_list = [[r-1, c], [r+1, c], [r, c-1], [r, c+1]]
+    range_filtered_list = list(filter(lambda n: -1<n[0]<13 and -1<n[1]< 6 and (n not in processed), neighbor_list))
+    next_list = list(filter(lambda n:b[n[0]][n[1]] is b[r][c], range_filtered_list))
+    if len(next_list) == 0:
+        return
+    for n in next_list:
+        chain(b, n[0], n[1], processed)
+    return
+
+def vanish(b):
+    vanished = False
+    for r in range(ROW):
+        for c in range(COL):
+            if b[r][c] is not Puyo.Empty:
+                processed = []
+                chain(b, r, c, processed)
+                if len(processed) > 3:
+                    vanished = True
+                    for p in processed:
+                        b[p[0]][p[1]] = Puyo.Empty
+    return vanished
 
 class Board():
     def __init__(self):
         self.board = [[Puyo.Empty for i in range(COL)] for i in range(ROW)]
         self.gripped_puyo = [
-            { 'position': {'row': 0, 'col': 1}, 'color': Puyo.Blue},
-            { 'position': {'row': 1, 'col': 1}, 'color': Puyo.Red}
+            { 'position': {'row': 0, 'col': 1}, 'color': Puyo.random_choice()},
+            { 'position': {'row': 1, 'col': 1}, 'color': Puyo.random_choice()}
         ]
         for p in self.gripped_puyo:
             self.board[p['position']['row']][p['position']['col']] = p['color']
         self.next_puyo = [
-            [Puyo.Blue, Puyo.Red],
-            [Puyo.Blue, Puyo.Red],
+            [Puyo.random_choice(), Puyo.random_choice()],
+            [Puyo.random_choice(), Puyo.random_choice()],
         ]
         self._status = Status.Normal
         self.init_view()
@@ -195,22 +228,33 @@ class Board():
         l = (Puyo.Red, Puyo.Blue, Puyo.Green, Puyo.Yellow, Puyo.Purple)
         self.next_puyo = [
             self.next_puyo[1],
-            [random.choice(l), random.choice(l)], 
+            [Puyo.random_choice(), Puyo.random_choice()], 
         ]
         self.update_next_view()
 
 
-    def status_check(self):
+    async def status_check(self):
+        print(self._status)
         if self._status == Status.Normal:
             pass
         elif self._status == Status.Fall:
-            fall(self.board, 12)
-            self._status = Status.Vanish
-            self.status_check()
+            if fall(self.board):
+                self._status = Status.Vanish
+                self.update_view()
+                await asyncio.sleep(1)
+                await self.status_check()
+            else:
+                self._status = Status.Vanish
+                await self.status_check()
         elif self._status == Status.Vanish:
-            ## Vanish chefk
-            self._status = Status.New
-            self.status_check()
+            if vanish(self.board):
+                self._status = Status.Fall
+                self.update_view()
+                await asyncio.sleep(1)
+                await self.status_check()
+            else:
+                self._status = Status.New
+                await self.status_check()
         elif self._status == Status.New:
             self.add_next_puyo()
             self._status = Status.Normal
@@ -222,7 +266,7 @@ async def tick():
   while True:
     try:
         if board.status is not Status.Normal:
-            board.status_check()
+            await board.status_check()
         await asyncio.sleep(1)
         board.update_board()
         board.update_view()
@@ -235,6 +279,6 @@ async def key_down(event):
     board.key_event(event)
 
 game_panel = document.querySelector("body")
-game_panel.addEventListener("keyup", create_proxy(key_down))
+game_panel.addEventListener("keydown", create_proxy(key_down))
 
 pyscript.run_until_complete(tick())
